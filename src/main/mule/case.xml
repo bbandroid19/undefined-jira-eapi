@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	
+	<sub-flow name="case_post-issue-updates">
+        <try doc:name="Try ANY error" doc:id="bd796737-2ba9-45e2-8974-bf6d82813a36" >
+			<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" doc:id="b65b5523-3309-463f-844a-ade77de5a40d" doc:name="Issue Id Extract">
+            <ee:message >
+					<ee:set-payload resource="transforms/dwl/amq-publish-req.dwl" />
+				</ee:message>
+				<ee:variables>
+                <ee:set-variable variableName="caseId"><![CDATA[attributes.uriParams.'caseId']]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+			<validation:is-not-blank-string doc:name="Is not empty string" doc:id="1b7c769f-fbf5-43bf-aebd-315a0e0299ac" config-ref="Validation_Config" value="#[payload.issueId]"/>
+			<logger level="INFO" doc:name="Before Publish" doc:id="4435783b-0fe0-44fc-829e-1c698b48c253" message="${application-msgs.before-connector-call-message}"/>
+			<until-successful maxRetries="${retry.amq.numRetries}" doc:name="retry Publish Case Update To AMQ" doc:id="687c9311-8830-4319-8c65-f7e848de68c4" millisBetweenRetries="${retry.amq.delayMillisecs}">
+				<anypoint-mq:publish doc:name="Publish Case Update To AMQ" doc:id="f7b79291-dc26-48df-ad6b-6bac6bda004a" destination="${anypoint-mq.case-update-queue-name}" config-ref="Anypoint_MQ_Config">
+				<anypoint-mq:properties><![CDATA[#[output application/java
+---
+{
+	correlationId : correlationId
+}]]]></anypoint-mq:properties>
+			</anypoint-mq:publish>
+			</until-successful>
+			<logger level="INFO" doc:name="After Publish" doc:id="233c46bb-151a-4402-9e11-42a6e3a0a9db" message="${application-msgs.after-connector-call-message}"/>
+			<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="4293a4bd-009a-45a4-8584-622a6a840e18" doc:name="Response Mapper">
+            <ee:message>
+				<ee:set-payload resource="transforms/dwl/amq-publish-response.dwl" />
+            </ee:message>
+        </ee:transform>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate ANY error" doc:id="c45ea3ff-de5b-4f22-a01e-8e723ab776b0">
+				<logger level="ERROR" doc:name="Error Before Publish" doc:id="2f525ef8-e64d-4cb9-a0ab-aed5ec7110a9" message="${application-msgs.local-exception-handler-message}"/>
+					<until-successful maxRetries="${retry.amq.numRetries}" doc:name="retry Publish Case Update To DLQ" doc:id="40bbd69f-dd08-4ccc-83c8-5cdc97783d3a" millisBetweenRetries="${retry.amq.delayMillisecs}">
+						<anypoint-mq:publish doc:name="Publish Case Update To DLQ" doc:id="795da6c5-941f-4aa1-ba5d-645849e5871f" config-ref="Anypoint_MQ_Config" destination="${anypoint-mq.case-update-dl-queue-name}" />
+					</until-successful>
+				<raise-error doc:name="Raise ANY error" doc:id="fdd519df-590a-4f35-9f59-f6d5c5d1b636" type="ANY" />
+			</on-error-propagate>
+			</error-handler>
+		</try>
+    </sub-flow>
+	
+	</mule>

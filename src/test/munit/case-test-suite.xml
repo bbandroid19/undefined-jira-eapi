@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="case-test-suite.xml" ignore="false"/>
+	<munit:test name="case-test-suite-post:\issue-updates:jira-exp-api-configTest" doc:id="534f86d1-6c03-49ad-b351-82aff6901164" description="Test">
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock MQ" doc:id="6128e383-22af-41f3-9ca0-ed7529969672" processor="anypoint-mq:publish">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="Anypoint_MQ_Config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="b5dbdb4e-b55c-4f98-a134-b325035ee9d3" >
+				<munit:payload value="#[readUrl('classpath://transforms/examples/case-update-mock-payload.dwl')]" />
+			</munit:set-event>
+			<flow-ref doc:name="post:\issue-updates:application\json:jira-exp-api-config" doc:id="175ea5ac-0071-452e-85f6-5316e7922e87" name="post:\issue-updates:application\json:accelerator-jira-exp-api-config"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="5aa7f698-26ff-456b-8b06-ac7cb37238fb" expression="#[payload[0].success]" is="#[MunitTools::notNullValue()]" message="Test Failed"/>
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="case-test-suite-post:\issue-updates:jira-exp-api-configTest-bad-request" doc:id="61bc08b7-333d-4bc1-898d-6ebae82186c7" description="Test" expectedErrorType="ANY">
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock MQ" doc:id="6dcbfbeb-f4b1-4ac7-ab5e-6672663e6c9d" processor="anypoint-mq:publish">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="Anypoint_MQ_Config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="28cbd25f-a40c-4d1e-b442-d2ee2b241495" >
+				<munit:payload value="#[readUrl('classpath://transforms/examples/case-update-mock-bad-request-payload.dwl')]" />
+			</munit:set-event>
+			<flow-ref doc:name="post:\issue-updates:application\json:jira-exp-api-config" doc:id="c4885541-a122-4094-a234-843959e5dc4c" name="post:\issue-updates:application\json:accelerator-jira-exp-api-config"/>
+		</munit:execution>
+	</munit:test>
+
+</mule>
